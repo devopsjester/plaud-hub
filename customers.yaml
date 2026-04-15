@@ -1,0 +1,68 @@
+customers:
+  - name: McDonalds
+    aliases:
+      - "McDonald's"
+      - "mcd"
+
+  - name: Nextera
+    aliases:
+      - "NextEra"
+      - "NextEra Energy"
+      - "fpl"
+      - "Florida Power & Light"
+
+  - name: SLB
+    aliases:
+      - "Schlumberger"
+
+  - name: Grainger
+    aliases:
+      - "Granger"
+      - "W.W. Grainger"
+
+  - name: Halliburton
+    aliases:
+      - "Halliburton Company"
+      - "Halliburton Energy Services"
+      - "HAL"
+      - "Veryum"
+
+  - name: Albertsons
+    aliases:
+      - "Albertson's"
+      - "Albertson"
+      - "Costco"
+
+  - name: CSX
+
+  - name: CocaCola
+    aliases:
+      - "Coca-Cola"
+      - "Coca Cola"
+      - "Coke"
+      - "TCCC"
+      - "The Coca-Cola Company"
+      - "bottling company"
+
+  - name: ThoughtWorks
+    aliases:
+      - "ThoughtWorks Inc."
+      - "ThoughtWorks Ltd."
+      - "ThoughtWorks Software"
+      - "TW"
+
+  - name: Chick-fil-A
+    aliases:
+      - "Chick-fil-A Inc."
+      - "Chick-fil-A, Inc."
+      - "CFA"
+  
+  - name: CoxAuto
+    aliases:
+      - "Cox Automotive"
+      - "Cox Auto"
+      - "Cox Automotive Inc."
+      - "Cox Auto Inc."
+      - "Cox"
+      - "CAI"
+  

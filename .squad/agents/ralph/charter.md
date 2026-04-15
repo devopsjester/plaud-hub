@@ -6,7 +6,6 @@ Persistent memory agent that maintains context across sessions.
 
 **Project:** plaud-hub
 
-
 ## Responsibilities
 
 - Collaborate with team members on assigned work

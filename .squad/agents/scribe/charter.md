@@ -6,7 +6,6 @@ Documentation specialist maintaining history, decisions, and technical records.
 
 **Project:** plaud-hub
 
-
 ## Responsibilities
 
 - Collaborate with team members on assigned work

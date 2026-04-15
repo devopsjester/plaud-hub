@@ -4,24 +4,24 @@ How to decide who handles what.
 
 ## Routing Table
 
-| Work Type | Route To | Examples |
-|-----------|----------|----------|
-| Architecture & design decisions | Architect | New packages, interfaces, integration planning, tradeoff analysis |
-| Calendar integration | Calendar | M365/Google OAuth, CalendarEvent model, `--correlate` flag |
-| Customer correlation | Customer | Customer registry, attendee matching, YAML front matter enrichment |
-| Distribution & publishing | Distribution | GitHub repo push, SharePoint/OneDrive upload, Gainsight sync |
-| Documentation | Documenter | README, CHANGELOG, CLI help text, CONTRIBUTING |
-| Build, release & CI/CD | Release | Semver tagging, cross-platform binaries, GitHub Actions |
-| Testing | Tester | Unit tests, table-driven tests, coverage, race detection |
-| Security review | Security | OWASP audit, `govulncheck`, token handling, path traversal |
-| Session logging | Scribe | Automatic — never needs routing |
+| Work Type                       | Route To     | Examples                                                           |
+| ------------------------------- | ------------ | ------------------------------------------------------------------ |
+| Architecture & design decisions | Architect    | New packages, interfaces, integration planning, tradeoff analysis  |
+| Calendar integration            | Calendar     | M365/Google OAuth, CalendarEvent model, `--correlate` flag         |
+| Customer correlation            | Customer     | Customer registry, attendee matching, YAML front matter enrichment |
+| Distribution & publishing       | Distribution | GitHub repo push, SharePoint/OneDrive upload, Gainsight sync       |
+| Documentation                   | Documenter   | README, CHANGELOG, CLI help text, CONTRIBUTING                     |
+| Build, release & CI/CD          | Release      | Semver tagging, cross-platform binaries, GitHub Actions            |
+| Testing                         | Tester       | Unit tests, table-driven tests, coverage, race detection           |
+| Security review                 | Security     | OWASP audit, `govulncheck`, token handling, path traversal         |
+| Session logging                 | Scribe       | Automatic — never needs routing                                    |
 
 ## Issue Routing
 
-| Label | Action | Who |
-|-------|--------|-----|
-| `squad` | Triage: analyze issue, assign `squad:{member}` label | Lead |
-| `squad:{name}` | Pick up issue and complete the work | Named member |
+| Label          | Action                                               | Who          |
+| -------------- | ---------------------------------------------------- | ------------ |
+| `squad`        | Triage: analyze issue, assign `squad:{member}` label | Lead         |
+| `squad:{name}` | Pick up issue and complete the work                  | Named member |
 
 ### How Issue Assignment Works
 
