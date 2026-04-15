@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/devopsjester/plaud-downloader/internal/api"
-	"github.com/devopsjester/plaud-downloader/internal/config"
-	"github.com/devopsjester/plaud-downloader/internal/download"
+	"github.com/devopsjester/plaud-hub/internal/api"
+	"github.com/devopsjester/plaud-hub/internal/config"
+	"github.com/devopsjester/plaud-hub/internal/download"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

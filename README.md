@@ -1,6 +1,6 @@
-# plaud-downloader
+# plaud-hub
 
-A CLI tool to download Plaud Note transcripts and/or AI summaries as Markdown files with YAML front matter.
+A CLI tool to download, correlate, and distribute Plaud Note transcripts and AI summaries as Markdown files with YAML front matter.
 
 ## Features
 
@@ -16,15 +16,15 @@ A CLI tool to download Plaud Note transcripts and/or AI summaries as Markdown fi
 ## Installation
 
 ```bash
-go install github.com/devopsjester/plaud-downloader/cmd/plaud-downloader@latest
+go install github.com/devopsjester/plaud-hub/cmd/plaud-hub@latest
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/devopsjester/plaud-downloader.git
-cd plaud-downloader
-go build -o plaud-downloader ./cmd/plaud-downloader
+git clone https://github.com/devopsjester/plaud-hub.git
+cd plaud-hub
+go build -o plaud-hub ./cmd/plaud-hub
 ```
 
 ## Authentication
@@ -38,14 +38,14 @@ Get your Plaud API token:
 Then set it up (choose one):
 
 ```bash
-# Interactive setup (saves to ~/.config/plaud-downloader/config.yaml)
-plaud-downloader auth setup
+# Interactive setup (saves to ~/Library/Application Support/plaud-hub/plaud-hub.yaml)
+plaud-hub auth setup
 
 # Environment variable
 export PLAUD_TOKEN='your-token-here'
 
 # CLI flag
-plaud-downloader download --token 'your-token-here'
+plaud-hub download --token 'your-token-here'
 ```
 
 Token resolution precedence: `--token` flag → `PLAUD_TOKEN` env → config file.
@@ -54,24 +54,24 @@ Token resolution precedence: `--token` flag → `PLAUD_TOKEN` env → config fil
 
 ```bash
 # Download all transcripts and summaries
-plaud-downloader download
+plaud-hub download
 
 # Download only transcripts from a date range
-plaud-downloader download --type transcript --from 2024-01-01 --to 2024-03-31
+plaud-hub download --type transcript --from 2024-01-01 --to 2024-03-31
 
 # Download summaries to a custom directory with 10 workers
-plaud-downloader download --type summary --output-dir ./summaries --concurrency 10
+plaud-hub download --type summary --output-dir ./summaries --concurrency 10
 
 # Force re-download of existing files
-plaud-downloader download --force
+plaud-hub download --force
 
 # Verbose/debug output
-plaud-downloader download -v
+plaud-hub download -v
 ```
 
 ## Configuration
 
-Config file (`./plaud-downloader.yaml` or `~/.config/plaud-downloader/config.yaml`):
+Config file (`./plaud-hub.yaml` or `~/Library/Application Support/plaud-hub/plaud-hub.yaml`):
 
 ```yaml
 token: "your-plaud-api-token"
@@ -103,7 +103,7 @@ type: transcript
 ## Project Layout
 
 ```
-cmd/plaud-downloader/main.go   # Entry point
+cmd/plaud-hub/main.go          # Entry point
 internal/
   api/                         # Plaud API client (endpoints, models, HTTP)
   cmd/                         # Cobra CLI commands (root, download, auth)

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/devopsjester/plaud-downloader/internal/api"
+	"github.com/devopsjester/plaud-hub/internal/api"
 )
 
 // WriteTranscript writes a transcript markdown file with YAML front matter.

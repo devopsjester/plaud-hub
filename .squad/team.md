@@ -1,6 +1,6 @@
 # Squad Team
 
-> plaud-downloader
+> plaud-hub
 
 ## Coordinator
 
@@ -28,5 +28,5 @@
 - **Owner:** devopsjester
 - **Stack:** Go 1.24, Cobra, Viper, mpb
 - **Description:** CLI tool to download Plaud Note transcripts/summaries as Markdown and correlate them with calendar events, customers, and distribution targets.
-- **Repo:** github.com/devopsjester/plaud-downloader
+- **Repo:** github.com/devopsjester/plaud-hub
 - **Created:** 2026-04-15

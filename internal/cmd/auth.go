@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/devopsjester/plaud-downloader/internal/config"
+	"github.com/devopsjester/plaud-hub/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +20,7 @@ var authSetupCmd = &cobra.Command{
 	Short: "Save your Plaud API token to the config file",
 	Long: `Interactively set up your Plaud API token.
 
-The token is saved to ~/.config/plaud-downloader/config.yaml.
+The token is saved to ~/.config/plaud-hub/config.yaml.
 
 To get the token:
   1. Open https://web.plaud.ai and sign in

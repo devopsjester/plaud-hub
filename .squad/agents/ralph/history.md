@@ -1,6 +1,6 @@
 # Project Context
 
-- **Project:** plaud-downloader
+- **Project:** plaud-hub
 - **Created:** 2026-04-15
 
 ## Core Context

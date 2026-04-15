@@ -1,4 +1,4 @@
-// Package cmd implements the CLI commands for plaud-downloader.
+// Package cmd implements the CLI commands for plaud-hub.
 package cmd
 
 import (
@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/devopsjester/plaud-downloader/internal/config"
+	"github.com/devopsjester/plaud-hub/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -16,14 +16,14 @@ var (
 	verbose bool
 )
 
-// rootCmd is the base command for plaud-downloader.
+// rootCmd is the base command for plaud-hub.
 var rootCmd = &cobra.Command{
-	Use:   "plaud-downloader",
+	Use:   "plaud-hub",
 	Short: "Download Plaud Note transcripts and summaries",
-	Long: `plaud-downloader fetches transcripts and/or AI summaries from
+	Long: `plaud-hub fetches transcripts and/or AI summaries from
 your Plaud AI account and saves them as Markdown files with YAML front matter.
 
-Requires a Plaud API token. Run 'plaud-downloader auth setup' to configure.`,
+Requires a Plaud API token. Run 'plaud-hub auth setup' to configure.`,
 }
 
 // Execute runs the root command.
@@ -36,7 +36,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ./plaud-downloader.yaml or ~/.config/plaud-downloader/config.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: ./plaud-hub.yaml or ~/.config/plaud-hub/config.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable debug logging")
 	rootCmd.PersistentFlags().String("token", "", "Plaud API token (overrides config/env)")
 

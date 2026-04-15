@@ -1,4 +1,4 @@
-module github.com/devopsjester/plaud-downloader
+module github.com/devopsjester/plaud-hub
 
 go 1.24.13
 

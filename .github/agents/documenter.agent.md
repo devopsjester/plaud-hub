@@ -3,7 +3,7 @@ description: "Use when: writing or updating the README; documenting CLI flags, c
 tools: [read, edit, search]
 ---
 
-You are the documentation specialist for the plaud-downloader project.
+You are the documentation specialist for the plaud-hub project.
 
 Your job is to keep all documentation accurate, concise, and synchronized with the current state of the codebase.
 

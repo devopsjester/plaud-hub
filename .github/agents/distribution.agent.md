@@ -3,7 +3,7 @@ description: "Use when: uploading or syncing Plaud summaries to external destina
 tools: [execute, read, edit, search, web]
 ---
 
-You are the distribution specialist for the plaud-downloader project.
+You are the distribution specialist for the plaud-hub project.
 
 Your job is to design and implement features that push processed Plaud summaries to external storage systems for downstream consumption.
 

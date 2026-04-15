@@ -1,4 +1,4 @@
-plaud-downloader
+plaud-hub
 output/
 # Squad: ignore runtime state (logs, inbox, sessions)
 .squad/orchestration-log/

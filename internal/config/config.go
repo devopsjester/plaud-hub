@@ -1,7 +1,7 @@
 // Package config handles configuration loading via Viper.
 //
 // Precedence: CLI flag → environment variable → config file.
-// Config file locations (in order): ./plaud-downloader.yaml, ~/.config/plaud-downloader/config.yaml
+// Config file locations (in order): ./plaud-hub.yaml, ~/.config/plaud-hub/config.yaml
 package config
 
 import (
@@ -28,12 +28,12 @@ func Setup(configFile string) error {
 		viper.SetConfigFile(configFile)
 	} else {
 		// Search in current directory first, then XDG config.
-		viper.SetConfigName("plaud-downloader")
+		viper.SetConfigName("plaud-hub")
 		viper.AddConfigPath(".")
 
 		configDir, err := os.UserConfigDir()
 		if err == nil {
-			viper.AddConfigPath(filepath.Join(configDir, "plaud-downloader"))
+			viper.AddConfigPath(filepath.Join(configDir, "plaud-hub"))
 		}
 	}
 
@@ -67,26 +67,26 @@ func Token() (string, error) {
 	}
 	return "", fmt.Errorf(
 		"Plaud token not found.\nOptions:\n" +
-			"  1. Run:  plaud-downloader auth setup\n" +
+			"  1. Run:  plaud-hub auth setup\n" +
 			"  2. Set:  export PLAUD_TOKEN='your-token'\n" +
 			"  3. Add:  token: 'your-token' to config file\n",
 	)
 }
 
 // SaveToken writes the token to the XDG config file at
-// ~/.config/plaud-downloader/config.yaml.
+// ~/.config/plaud-hub/config.yaml.
 func SaveToken(token string) (string, error) {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("determine config directory: %w", err)
 	}
 
-	dir := filepath.Join(configDir, "plaud-downloader")
+	dir := filepath.Join(configDir, "plaud-hub")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", fmt.Errorf("create config directory: %w", err)
 	}
 
-	path := filepath.Join(dir, "plaud-downloader.yaml")
+	path := filepath.Join(dir, "plaud-hub.yaml")
 
 	// Read existing config if present, update token.
 	v := viper.New()

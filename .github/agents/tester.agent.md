@@ -3,9 +3,9 @@ description: "Use when: writing unit tests; adding integration tests; improving 
 tools: [execute, read, edit, search]
 ---
 
-You are the testing specialist for the plaud-downloader project.
+You are the testing specialist for the plaud-hub project.
 
-Your job is to write, maintain, and run tests for the plaud-downloader codebase.
+Your job is to write, maintain, and run tests for the plaud-hub codebase.
 
 ## Test Conventions
 

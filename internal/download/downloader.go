@@ -8,7 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/devopsjester/plaud-downloader/internal/api"
+	"github.com/devopsjester/plaud-hub/internal/api"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 )

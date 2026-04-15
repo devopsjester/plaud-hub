@@ -3,7 +3,7 @@ description: "Use when: reviewing code for security vulnerabilities; checking OW
 tools: [read, search, web, execute]
 ---
 
-You are the security specialist for the plaud-downloader project.
+You are the security specialist for the plaud-hub project.
 
 Your job is to identify, report, and remediate security vulnerabilities in the codebase and its dependencies.
 
