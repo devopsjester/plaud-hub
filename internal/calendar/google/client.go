@@ -145,6 +145,7 @@ func (c *Client) ListEvents(ctx context.Context, from, to time.Time) ([]calendar
 			Title:     ge.Summary,
 			Start:     start,
 			End:       end,
+			AllDay:    ge.Start.Date != "", // Google sets Date (not DateTime) for all-day events
 			Attendees: attendees,
 			Source:    "google",
 		})

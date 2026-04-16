@@ -8,14 +8,21 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/devopsjester/plaud-hub/internal/calendar"
 	googlecal "github.com/devopsjester/plaud-hub/internal/calendar/google"
+	reclaimcal "github.com/devopsjester/plaud-hub/internal/calendar/reclaim"
 	"github.com/devopsjester/plaud-hub/internal/config"
 	"github.com/devopsjester/plaud-hub/internal/customer"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+// calendarClient is the common interface both Google and Reclaim clients satisfy.
+type calendarClient interface {
+	ListEvents(ctx context.Context, from, to time.Time) ([]calendar.CalendarEvent, error)
+}
 
 var correlateCmd = &cobra.Command{
 	Use:   "correlate",
@@ -25,9 +32,9 @@ which customer(s) each recording relates to using a customer registry YAML file,
 and copies (or moves) the files into output/customers/{CustomerName}/ subfolders.
 
 Both the summary and transcript are searched for customer names. When
---calendar google is specified, calendar events are fetched for each recording's
-date and attendee email domains are matched against the customers file to confirm
-or add customer matches.
+--calendar reclaim or --calendar google is specified, calendar events are fetched
+for each recording's date; attendee email domains are matched against the
+customers file to confirm or add customer matches.
 
 When a recording matches multiple customers, files are copied to each folder.
 Use --move to remove the originals from the output root after copying.`,
@@ -40,7 +47,7 @@ func init() {
 	correlateCmd.Flags().String("customers-file", "", "path to customer registry YAML file (required)")
 	correlateCmd.Flags().Bool("move", false, "move files instead of copying (removes originals from output root)")
 	correlateCmd.Flags().String("min-confidence", customer.ConfidenceMedium, "minimum confidence level to act on: high, medium, or low")
-	correlateCmd.Flags().String("calendar", "", "confirm matches via calendar: google (optional)")
+	correlateCmd.Flags().String("calendar", "", "confirm matches via calendar attendees: reclaim or google")
 	correlateCmd.Flags().Duration("calendar-tolerance", 15*time.Minute, "time window around recording start to search for a matching calendar event")
 
 	_ = correlateCmd.MarkFlagRequired("customers-file")
@@ -60,8 +67,8 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 	if customer.ConfidenceRank(minConf) == 0 {
 		return fmt.Errorf("invalid --min-confidence %q: must be high, medium, or low", minConf)
 	}
-	if calProvider != "" && calProvider != "google" {
-		return fmt.Errorf("invalid --calendar %q: only \"google\" is supported", calProvider)
+	if calProvider != "" && calProvider != "google" && calProvider != "reclaim" {
+		return fmt.Errorf("invalid --calendar %q: must be \"google\" or \"reclaim\"", calProvider)
 	}
 
 	registry, err := customer.LoadRegistry(customersFile)
@@ -72,9 +79,20 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("customers file %q contains no customers", customersFile)
 	}
 
-	// Optionally build a Google Calendar client.
-	var calClient *googlecal.Client
-	if calProvider == "google" {
+	// Build the calendar client if requested.
+	var calClient calendarClient
+	switch calProvider {
+	case "reclaim":
+		apiKey, err := config.LoadReclaimKey()
+		if err != nil {
+			return fmt.Errorf("load Reclaim API key: %w", err)
+		}
+		if apiKey == "" {
+			return fmt.Errorf("no Reclaim API key found — run: plaud-hub auth setup-reclaim")
+		}
+		calClient = reclaimcal.NewClient(apiKey)
+		logger.Info("Reclaim.ai calendar enabled", "tolerance", calTolerance)
+	case "google":
 		accessToken, _, err := config.LoadCalendarToken("google")
 		if err != nil {
 			return fmt.Errorf("load Google Calendar token: %w", err)
@@ -102,17 +120,33 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 	for _, summaryPath := range summaries {
 		base := filepath.Base(summaryPath)
 
-		// Match against both summary and transcript.
-		matches, err := customer.CorrelateFileCombined(summaryPath, registry)
-		if err != nil {
-			logger.Warn("skipping (parse error)", "file", base, "err", err)
-			skipped++
-			continue
-		}
+		var matches []customer.Match
 
-		// Optionally log the matching calendar event (informational only).
 		if calClient != nil {
-			logCalendarMatch(cmd.Context(), calClient, summaryPath, calTolerance, logger)
+			// Calendar path: time-window + attendee domain (high) merged with
+			// body text (medium). calendarMatches handles both passes.
+			calMatches, _, err := calendarMatches(cmd.Context(), calClient, registry, summaryPath, calTolerance, logger)
+			if err != nil {
+				logger.Warn("calendar lookup failed — falling back to text matching", "file", base, "err", err)
+				// Non-fatal: fall back to text-only.
+				matches, err = customer.CorrelateFile(summaryPath, registry)
+				if err != nil {
+					logger.Warn("skipping (parse error)", "file", base, "err", err)
+					skipped++
+					continue
+				}
+			} else {
+				matches = calMatches
+			}
+		} else {
+			// No calendar: text-only matching.
+			var err error
+			matches, err = customer.CorrelateFile(summaryPath, registry)
+			if err != nil {
+				logger.Warn("skipping (parse error)", "file", base, "err", err)
+				skipped++
+				continue
+			}
 		}
 
 		// Filter to eligible matches.
@@ -128,12 +162,7 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 			continue
 		}
 
-		// Derive the paired transcript path.
-		transcriptPath := strings.TrimSuffix(summaryPath, "_summary.md") + "_transcript.md"
-		_, transcriptErr := os.Stat(transcriptPath)
-		hasTranscript := transcriptErr == nil
-
-		// Copy (or move) to every matched customer folder.
+		// Copy (or move) summary to every matched customer folder.
 		for _, m := range eligible {
 			destDir := customer.CustomerOutputDir(outputDir, m.Customer.Name)
 			if err := os.MkdirAll(destDir, 0o755); err != nil {
@@ -148,13 +177,6 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 				continue
 			}
 
-			if hasTranscript {
-				transcriptDest := filepath.Join(destDir, filepath.Base(transcriptPath))
-				if err := copyOrMoveFile(transcriptPath, transcriptDest, useRename); err != nil {
-					logger.Warn("failed to place transcript", "file", filepath.Base(transcriptPath), "customer", m.Customer.Name, "err", err)
-				}
-			}
-
 			logger.Info("placed",
 				"file", base,
 				"customer", m.Customer.Name,
@@ -163,12 +185,9 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 			placed++
 		}
 
-		// Multi-customer + --move: remove originals after all copies.
+		// Multi-customer + --move: remove original after all copies.
 		if moveFiles && len(eligible) > 1 {
 			_ = os.Remove(summaryPath)
-			if hasTranscript {
-				_ = os.Remove(transcriptPath)
-			}
 		}
 	}
 
@@ -176,44 +195,164 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-// logCalendarMatch fetches Google Calendar events for the recording's date and
-// logs the matching event title if one is found. It does not affect customer
-// matching — calendar is used for informational confirmation only.
-func logCalendarMatch(
+// calendarMatches returns customer matches for a recording by correlating its
+// timestamp window against calendar events, then boosting with body text.
+//
+// Confidence tiers:
+//   - high:   recording window overlaps a non-all-day calendar event AND the
+//     attendee's email domain maps to a known customer.
+//   - medium: no calendar attendee match but the summary body text mentions
+//     the customer name. Also used when a high match has a body
+//     mention — the calendar result wins (already high), no change.
+//
+// The recording window is [date, date+duration]. A 2-minute grace period is
+// applied at both ends to account for the Plaud button being pressed slightly
+// before or after the calendar invite time.
+//
+// eventFound is true when at least one overlapping non-all-day event was found,
+// even if no domain matched a known customer.
+func calendarMatches(
 	ctx context.Context,
-	client *googlecal.Client,
+	client calendarClient,
+	registry *customer.Registry,
 	summaryPath string,
-	tolerance time.Duration,
+	_ time.Duration, // tolerance flag kept for interface compatibility; grace is built-in
 	logger interface {
 		Warn(string, ...any)
 		Debug(string, ...any)
 	},
-) {
-	recDate, err := customer.ParseRecordingDate(summaryPath)
-	if err != nil || recDate.IsZero() {
-		return
+) (matches []customer.Match, eventFound bool, err error) {
+	info, parseErr := customer.ParseRecordingInfo(summaryPath)
+	if parseErr != nil || info.Start.IsZero() {
+		return nil, false, nil
 	}
 
-	from := recDate.Add(-24 * time.Hour)
-	to := recDate.Add(48 * time.Hour)
+	from := info.Start.Truncate(24 * time.Hour)
+	to := from.Add(24 * time.Hour)
 
 	events, err := client.ListEvents(ctx, from, to)
 	if err != nil {
-		logger.Warn("calendar lookup failed", "file", filepath.Base(summaryPath), "err", err)
-		return
+		return nil, false, err
 	}
 
-	recordingStart := recDate.Add(12 * time.Hour)
-	matched := calendar.MatchRecording(recordingStart, events, tolerance)
-	if matched == nil {
-		logger.Debug("no calendar event matched", "file", filepath.Base(summaryPath))
-		return
+	const grace = 2 * time.Minute
+	recStart := info.Start.UTC().Add(-grace)
+	recEnd := info.End().UTC().Add(grace)
+
+	// --- Pass 1: calendar attendee domain matching (high confidence) ---
+	seenHigh := make(map[string]bool)
+	for _, ev := range events {
+		logger.Debug("considering event",
+			"file", filepath.Base(summaryPath),
+			"event", ev.Title,
+			"allday", ev.AllDay,
+			"ev_start", ev.Start.Format(time.RFC3339),
+			"ev_end", ev.End.Format(time.RFC3339),
+			"rec_start", recStart.Format(time.RFC3339),
+			"rec_end", recEnd.Format(time.RFC3339),
+			"attendees", len(ev.Attendees),
+		)
+		if ev.AllDay {
+			continue
+		}
+		// Overlap: recording window must intersect the event window.
+		if recEnd.Before(ev.Start.UTC()) || recStart.After(ev.End.UTC()) {
+			continue
+		}
+		if len(ev.Attendees) < 2 {
+			continue
+		}
+		eventFound = true
+		logger.Debug("calendar event overlaps recording",
+			"file", filepath.Base(summaryPath),
+			"event", ev.Title,
+			"event_start", ev.Start.Format(time.RFC3339),
+			"event_end", ev.End.Format(time.RFC3339),
+			"attendees", len(ev.Attendees),
+		)
+		for _, att := range ev.Attendees {
+			domain := emailDomain(att.Email)
+			if domain == "" {
+				continue
+			}
+			c := registry.MatchDomain(domain)
+			if c == nil || seenHigh[c.Name] {
+				continue
+			}
+			seenHigh[c.Name] = true
+			matches = append(matches, customer.Match{Customer: c, Confidence: customer.ConfidenceHigh})
+			logger.Debug("calendar attendee match",
+				"file", filepath.Base(summaryPath),
+				"event", ev.Title,
+				"domain", domain,
+				"customer", c.Name,
+			)
+		}
 	}
 
-	logger.Debug("calendar event matched",
-		"file", filepath.Base(summaryPath),
-		"event", matched.Title,
-	)
+	// --- Pass 2: summary body text matching (medium confidence) ---
+	// Any customer found in the body text that was NOT already matched at high
+	// confidence from the calendar is added at medium confidence.
+	textMatches := registry.MatchText(info.Title, info.Body)
+	for _, tm := range textMatches {
+		if seenHigh[tm.Customer.Name] {
+			// Already captured at high; body text doesn't lower it.
+			continue
+		}
+		logger.Debug("body text match",
+			"file", filepath.Base(summaryPath),
+			"customer", tm.Customer.Name,
+			"confidence", tm.Confidence,
+		)
+		matches = append(matches, customer.Match{Customer: tm.Customer, Confidence: customer.ConfidenceMedium})
+	}
+
+	return matches, eventFound, nil
+}
+
+// recordingTitleFromPath extracts a normalized title string from the filename.
+// e.g. "2026-02-24_Planning_Meeting_GitHub_Team_Governance_summary.md" → "planning meeting github team governance"
+func recordingTitleFromPath(path string) string {
+	base := filepath.Base(path)
+	// Strip date prefix (YYYY-MM-DD_) and suffix (_summary.md or _transcript.md).
+	base = strings.TrimSuffix(base, "_summary.md")
+	base = strings.TrimSuffix(base, "_transcript.md")
+	// Remove leading date portion if present.
+	if len(base) > 10 && base[4] == '-' && base[7] == '-' {
+		base = base[10:] // skip YYYY-MM-DD_
+	}
+	return strings.ToLower(strings.ReplaceAll(base, "_", " "))
+}
+
+// titlesOverlap returns true if the calendar event title shares at least one
+// meaningful word (≥4 chars, not a stop word) with the recording title.
+func titlesOverlap(recTitle, eventTitle string) bool {
+	eventLower := strings.ToLower(eventTitle)
+	stopWords := map[string]bool{
+		"the": true, "and": true, "for": true, "with": true, "from": true,
+		"this": true, "that": true, "have": true, "will": true, "your": true,
+	}
+	words := strings.FieldsFunc(recTitle, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	for _, w := range words {
+		if len(w) < 4 || stopWords[w] {
+			continue
+		}
+		if strings.Contains(eventLower, w) {
+			return true
+		}
+	}
+	return false
+}
+
+// emailDomain extracts the domain part from an email address.
+func emailDomain(email string) string {
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) != 2 {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(parts[1]))
 }
 
 // copyOrMoveFile copies src to dst, or renames if move is true.

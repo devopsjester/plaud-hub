@@ -1,10 +1,13 @@
 // Package config — calendar token storage helpers.
 //
-// Tokens are persisted under the same config file as the Plaud token, using
-// Viper keys:
+// Google OAuth tokens are persisted under:
 //
 //	calendar.google.access_token
 //	calendar.google.refresh_token
+//
+// Reclaim API key is persisted under:
+//
+//	calendar.reclaim.api_key
 //
 // The file is always written at chmod 600.
 package config
@@ -90,10 +93,62 @@ func LoadCalendarToken(provider string) (accessToken, refreshToken string, err e
 }
 
 // validateProvider returns an error for unrecognised provider strings.
-// This is a defense-in-depth check; callers should use the named constants.
 func validateProvider(provider string) error {
-	if provider == "google" {
+	if provider == "google" || provider == "reclaim" {
 		return nil
 	}
-	return fmt.Errorf("unknown calendar provider %q: must be \"google\"", provider)
+	return fmt.Errorf("unknown calendar provider %q: must be \"google\" or \"reclaim\"", provider)
+}
+
+// SaveReclaimKey persists the Reclaim.ai API key to the shared config file.
+func SaveReclaimKey(apiKey string) error {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return fmt.Errorf("determine config directory: %w", err)
+	}
+
+	dir := filepath.Join(configDir, "plaud-hub")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("create config directory: %w", err)
+	}
+
+	path := filepath.Join(dir, "plaud-hub.yaml")
+
+	v := viper.New()
+	v.SetConfigType("yaml")
+	v.SetConfigFile(path)
+	_ = v.ReadInConfig()
+
+	v.Set("calendar.reclaim.api_key", apiKey)
+
+	if err := v.WriteConfigAs(path); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+
+	return os.Chmod(path, 0o600)
+}
+
+// LoadReclaimKey reads the Reclaim.ai API key from the config file.
+// Returns an empty string without error when no key has been stored yet.
+func LoadReclaimKey() (string, error) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("determine config directory: %w", err)
+	}
+
+	path := filepath.Join(configDir, "plaud-hub", "plaud-hub.yaml")
+
+	v := viper.New()
+	v.SetConfigType("yaml")
+	v.SetConfigFile(path)
+	if err := v.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			return "", nil
+		}
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("read config: %w", err)
+	}
+	return v.GetString("calendar.reclaim.api_key"), nil
 }

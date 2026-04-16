@@ -13,7 +13,9 @@ import (
 
 // WriteTranscript writes a transcript markdown file with YAML front matter.
 func WriteTranscript(outputDir string, rec api.Recording, segments []api.TranscriptSegment) (string, error) {
-	date := rec.CreatedAt().Format("2006-01-02")
+	createdAt := rec.CreatedAt()
+	date := createdAt.Format("2006-01-02")
+	timestamp := createdAt.Format(time.RFC3339)
 	base := SanitizeFilename(rec.Filename)
 	filename := fmt.Sprintf("%s_%s_transcript.md", date, base)
 	path := filepath.Join(outputDir, filename)
@@ -23,7 +25,7 @@ func WriteTranscript(outputDir string, rec api.Recording, segments []api.Transcr
 	// YAML front matter.
 	sb.WriteString("---\n")
 	sb.WriteString(fmt.Sprintf("recording_id: %s\n", rec.ID))
-	sb.WriteString(fmt.Sprintf("date: %s\n", date))
+	sb.WriteString(fmt.Sprintf("date: %s\n", timestamp))
 	sb.WriteString(fmt.Sprintf("duration: %q\n", rec.DurationDisplay()))
 	sb.WriteString(fmt.Sprintf("title: %q\n", rec.Filename))
 	sb.WriteString("type: transcript\n")
@@ -52,7 +54,9 @@ func WriteTranscript(outputDir string, rec api.Recording, segments []api.Transcr
 
 // WriteSummary writes a summary markdown file with YAML front matter.
 func WriteSummary(outputDir string, rec api.Recording, content string) (string, error) {
-	date := rec.CreatedAt().Format("2006-01-02")
+	createdAt := rec.CreatedAt()
+	date := createdAt.Format("2006-01-02")
+	timestamp := createdAt.Format(time.RFC3339)
 	base := SanitizeFilename(rec.Filename)
 	filename := fmt.Sprintf("%s_%s_summary.md", date, base)
 	path := filepath.Join(outputDir, filename)
@@ -62,7 +66,7 @@ func WriteSummary(outputDir string, rec api.Recording, content string) (string, 
 	// YAML front matter.
 	sb.WriteString("---\n")
 	sb.WriteString(fmt.Sprintf("recording_id: %s\n", rec.ID))
-	sb.WriteString(fmt.Sprintf("date: %s\n", date))
+	sb.WriteString(fmt.Sprintf("date: %s\n", timestamp))
 	sb.WriteString(fmt.Sprintf("duration: %q\n", rec.DurationDisplay()))
 	sb.WriteString(fmt.Sprintf("title: %q\n", rec.Filename))
 	sb.WriteString("type: summary\n")

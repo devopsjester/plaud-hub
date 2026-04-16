@@ -39,8 +39,8 @@ type Match struct {
 //
 // Multiple customers may be returned when a recording mentions more than one.
 func (r *Registry) MatchText(title, body string) []Match {
-	titleLower := strings.ToLower(title)
-	bodyLower := strings.ToLower(body)
+	titleLower := normalizeQuotes(strings.ToLower(title))
+	bodyLower := normalizeQuotes(strings.ToLower(body))
 
 	// Track best confidence per customer name to avoid duplicates.
 	best := make(map[string]string, len(r.Customers))
@@ -69,6 +69,25 @@ func (r *Registry) MatchText(title, body string) []Match {
 		}
 	}
 	return matches
+}
+
+// MatchDomain returns the customer whose Domains list contains the given email
+// domain (e.g. "us.mcd.com"). Comparison is case-insensitive.
+// Returns nil when no customer claims the domain.
+func (r *Registry) MatchDomain(domain string) *Customer {
+	domainLower := strings.ToLower(strings.TrimSpace(domain))
+	if domainLower == "" {
+		return nil
+	}
+	for i := range r.Customers {
+		c := &r.Customers[i]
+		for _, d := range c.Domains {
+			if strings.ToLower(d) == domainLower {
+				return c
+			}
+		}
+	}
+	return nil
 }
 
 // matchCustomer checks all terms for a single customer against title and body.
@@ -125,4 +144,22 @@ func containsWord(text, term string) bool {
 // isWordChar returns true for runes that are letters or digits.
 func isWordChar(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
+// normalizeQuotes replaces Unicode curly/typographic quote characters with
+// their plain ASCII equivalents so that alias matching is not defeated by
+// AI-generated summaries that use smart punctuation.
+//
+// Replacements:
+//
+//	\u2018 LEFT SINGLE QUOTATION MARK  → '
+//	\u2019 RIGHT SINGLE QUOTATION MARK → '
+//	\u201C LEFT DOUBLE QUOTATION MARK  → "
+//	\u201D RIGHT DOUBLE QUOTATION MARK → "
+func normalizeQuotes(s string) string {
+	s = strings.ReplaceAll(s, "\u2018", "'")
+	s = strings.ReplaceAll(s, "\u2019", "'")
+	s = strings.ReplaceAll(s, "\u201C", "\"")
+	s = strings.ReplaceAll(s, "\u201D", "\"")
+	return s
 }

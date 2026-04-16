@@ -11,8 +11,9 @@ type CalendarEvent struct {
 	Title     string
 	Start     time.Time // UTC
 	End       time.Time // UTC
+	AllDay    bool      // true when the event spans a full day with no time component
 	Attendees []Attendee
-	Source    string // "m365" or "google"
+	Source    string // "reclaim" or "google"
 }
 
 // Attendee is a meeting participant.

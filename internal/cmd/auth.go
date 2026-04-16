@@ -36,6 +36,7 @@ func init() {
 	rootCmd.AddCommand(authCmd)
 	authCmd.AddCommand(authSetupCmd)
 	authCmd.AddCommand(authSetupGoogleCmd)
+	authCmd.AddCommand(authSetupReclaimCmd)
 }
 
 func runAuthSetup(_ *cobra.Command, _ []string) error {
@@ -101,5 +102,37 @@ func runAuthSetupGoogle(_ *cobra.Command, _ []string) error {
 	}
 
 	fmt.Println("Google Calendar authorized successfully.")
+	return nil
+}
+
+var authSetupReclaimCmd = &cobra.Command{
+	Use:   "setup-reclaim",
+	Short: "Save your Reclaim.ai API key to the config file",
+	Long: `Stores your Reclaim.ai API key for use with --calendar reclaim.
+
+Get your API key from: https://app.reclaim.ai/settings/developer`,
+	RunE: runAuthSetupReclaim,
+}
+
+func runAuthSetupReclaim(_ *cobra.Command, _ []string) error {
+	fmt.Println("Enter your Reclaim.ai API key:")
+	fmt.Println("(Get it from https://app.reclaim.ai/settings/developer)")
+	fmt.Print("> ")
+
+	scanner := bufio.NewScanner(os.Stdin)
+	if !scanner.Scan() {
+		return fmt.Errorf("no input received")
+	}
+
+	key := strings.TrimSpace(scanner.Text())
+	if key == "" {
+		return fmt.Errorf("API key cannot be empty")
+	}
+
+	if err := config.SaveReclaimKey(key); err != nil {
+		return fmt.Errorf("save Reclaim API key: %w", err)
+	}
+
+	fmt.Println("Reclaim.ai API key saved.")
 	return nil
 }

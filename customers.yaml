@@ -3,6 +3,10 @@ customers:
     aliases:
       - "McDonald's"
       - "mcd"
+    domains:
+      - "us.mcd.com"
+      - "mcd.com"
+      - "mcdonalds.com"
 
   - name: Nextera
     aliases:
@@ -10,15 +14,24 @@ customers:
       - "NextEra Energy"
       - "fpl"
       - "Florida Power & Light"
+    domains:
+      - "nexteraenergy.com"
+      - "fpl.com"
 
   - name: SLB
     aliases:
       - "Schlumberger"
+    domains:
+      - "slb.com"
+      - "schlumberger.com"
 
   - name: Grainger
     aliases:
       - "Granger"
       - "W.W. Grainger"
+    domains:
+      - "grainger.com"
+      - "wwgrainger.com"
 
   - name: Halliburton
     aliases:
@@ -26,14 +39,21 @@ customers:
       - "Halliburton Energy Services"
       - "HAL"
       - "Veryum"
+    domains:
+      - "halliburton.com"
 
   - name: Albertsons
     aliases:
       - "Albertson's"
       - "Albertson"
       - "Costco"
+    domains:
+      - "albertsons.com"
+      - "costco.com"
 
   - name: CSX
+    domains:
+      - "csx.com"
 
   - name: CocaCola
     aliases:
@@ -43,6 +63,10 @@ customers:
       - "TCCC"
       - "The Coca-Cola Company"
       - "bottling company"
+    domains:
+      - "coca-cola.com"
+      - "coke.com"
+      - "tccc.com"
 
   - name: ThoughtWorks
     aliases:
@@ -50,12 +74,17 @@ customers:
       - "ThoughtWorks Ltd."
       - "ThoughtWorks Software"
       - "TW"
+    domains:
+      - "thoughtworks.com"
 
   - name: Chick-fil-A
     aliases:
       - "Chick-fil-A Inc."
       - "Chick-fil-A, Inc."
       - "CFA"
+    domains:
+      - "chick-fil-a.com"
+      - "cfa.com"
   
   - name: CoxAuto
     aliases:
@@ -65,4 +94,6 @@ customers:
       - "Cox Auto Inc."
       - "Cox"
       - "CAI"
-  
+    domains:
+      - "coxautoinc.com"
+      - "coxauto.com"

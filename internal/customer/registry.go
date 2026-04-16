@@ -15,15 +15,18 @@ type Customer struct {
 	Name string `yaml:"name"`
 	// Aliases are additional terms to match (e.g. "McDonald's", "mcd").
 	Aliases []string `yaml:"aliases,omitempty"`
+	// Domains are email domains associated with this customer (e.g. "us.mcd.com").
+	Domains []string `yaml:"domains,omitempty"`
 }
 
-// allTerms returns a lowercase slice of the canonical name plus all aliases.
+// allTerms returns a lowercase, quote-normalized slice of the canonical name
+// plus all aliases — ready for direct comparison against normalized text.
 func (c Customer) allTerms() []string {
 	terms := make([]string, 0, 1+len(c.Aliases))
-	terms = append(terms, strings.ToLower(c.Name))
+	terms = append(terms, normalizeQuotes(strings.ToLower(c.Name)))
 	for _, a := range c.Aliases {
 		if a != "" {
-			terms = append(terms, strings.ToLower(a))
+			terms = append(terms, normalizeQuotes(strings.ToLower(a)))
 		}
 	}
 	return terms
