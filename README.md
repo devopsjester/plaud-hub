@@ -69,6 +69,36 @@ plaud-hub download --force
 plaud-hub download -v
 ```
 
+## Correlate
+
+The `correlate` command organizes downloaded Markdown files into per-customer subfolders under `output/customers/`. Move is the default; use `--keep` to preserve originals in the output root.
+
+```bash
+# Move files to customer folders (default)
+plaud-hub correlate --customers-file customers.yaml
+
+# Keep originals in the output root while copying to customer folders
+plaud-hub correlate --customers-file customers.yaml --keep
+
+# Confirm customer matches via Google Calendar attendees
+plaud-hub correlate --customers-file customers.yaml --calendar google
+
+# Split multi-customer summaries using an LLM
+plaud-hub correlate --customers-file customers.yaml --calendar google --split-llm github
+```
+
+### Correlate flags
+
+| Flag                    | Default    | Description                                                                |
+| ----------------------- | ---------- | -------------------------------------------------------------------------- |
+| `--customers-file`      | (required) | Path to customer registry YAML file                                        |
+| `--output-dir`          | `./output` | Directory containing downloaded files                                      |
+| `--keep`                | false      | Keep originals in output root (default is to move)                         |
+| `--min-confidence`      | `medium`   | Minimum confidence to act on: `high`, `medium`, or `low`                   |
+| `--calendar`            |            | Confirm matches via calendar attendees: `google` or `reclaim`              |
+| `--calendar-tolerance`  | `15m`      | Time window around recording start to search for a matching calendar event |
+| `--split-llm`           |            | Split multi-customer summaries using an LLM: `github`                      |
+
 ## Configuration
 
 Config file (`./plaud-hub.yaml` or `~/Library/Application Support/plaud-hub/plaud-hub.yaml`):
@@ -78,7 +108,12 @@ token: "your-plaud-api-token"
 output_dir: "./output"
 concurrency: 5
 type: "all"
+github_token: "ghp_your-github-token"  # required for --split-llm github
 ```
+
+### GitHub token (for `--split-llm github`)
+
+`--split-llm github` uses GitHub Models (gpt-4o-mini) to split multi-customer summaries into per-customer files. Add a GitHub personal access token (with `models: read` scope) as `github_token` in the config file, or set it there manually. There is no interactive setup command for this token.
 
 Use `--config` to specify a custom config file path.
 
@@ -106,9 +141,12 @@ type: transcript
 cmd/plaud-hub/main.go          # Entry point
 internal/
   api/                         # Plaud API client (endpoints, models, HTTP)
-  cmd/                         # Cobra CLI commands (root, download, auth)
+  calendar/                    # Google and Reclaim calendar clients
+  cmd/                         # Cobra CLI commands (root, download, auth, correlate)
   config/                      # Viper configuration management
+  customer/                    # Customer registry, text matching, LLM splitting
   download/                    # Download orchestration, file writing, filename utility
+  llm/                         # GitHub Models LLM client
 ```
 
 ## License

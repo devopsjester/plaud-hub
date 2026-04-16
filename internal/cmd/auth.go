@@ -37,6 +37,7 @@ func init() {
 	authCmd.AddCommand(authSetupCmd)
 	authCmd.AddCommand(authSetupGoogleCmd)
 	authCmd.AddCommand(authSetupReclaimCmd)
+	authCmd.AddCommand(authSetupGitHubCmd)
 }
 
 func runAuthSetup(_ *cobra.Command, _ []string) error {
@@ -134,5 +135,41 @@ func runAuthSetupReclaim(_ *cobra.Command, _ []string) error {
 	}
 
 	fmt.Println("Reclaim.ai API key saved.")
+	return nil
+}
+
+var authSetupGitHubCmd = &cobra.Command{
+	Use:   "setup-github",
+	Short: "Save your GitHub personal access token to the config file",
+	Long: `Stores a GitHub personal access token (PAT) for use with --split-llm github.
+
+The token requires the "models: read" permission on GitHub.
+Get a token from: https://github.com/settings/tokens
+
+The token is saved to ~/.config/plaud-hub/plaud-hub.yaml with chmod 600.`,
+	RunE: runAuthSetupGitHub,
+}
+
+func runAuthSetupGitHub(_ *cobra.Command, _ []string) error {
+	fmt.Println("Enter your GitHub personal access token:")
+	fmt.Println("(Requires 'models: read' permission — get one at https://github.com/settings/tokens)")
+	fmt.Print("> ")
+
+	scanner := bufio.NewScanner(os.Stdin)
+	if !scanner.Scan() {
+		return fmt.Errorf("no input received")
+	}
+
+	token := strings.TrimSpace(scanner.Text())
+	if token == "" {
+		return fmt.Errorf("token cannot be empty")
+	}
+
+	if err := config.SaveGitHubToken(token); err != nil {
+		return fmt.Errorf("save GitHub token: %w", err)
+	}
+
+	configDir, _ := os.UserConfigDir()
+	fmt.Printf("GitHub token saved to %s/plaud-hub/plaud-hub.yaml\n", configDir)
 	return nil
 }

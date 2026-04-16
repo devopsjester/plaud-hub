@@ -152,3 +152,58 @@ func LoadReclaimKey() (string, error) {
 	}
 	return v.GetString("calendar.reclaim.api_key"), nil
 }
+
+// LoadGitHubToken reads the GitHub personal access token from the config file.
+// The key is "github_token" at the root level (not nested under "calendar:").
+// Returns an empty string without error when no token has been stored yet.
+func LoadGitHubToken() (string, error) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("determine config directory: %w", err)
+	}
+
+	path := filepath.Join(configDir, "plaud-hub", "plaud-hub.yaml")
+
+	v := viper.New()
+	v.SetConfigType("yaml")
+	v.SetConfigFile(path)
+	if err := v.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			return "", nil
+		}
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("read config: %w", err)
+	}
+	return v.GetString("github_token"), nil
+}
+
+// SaveGitHubToken persists the GitHub personal access token to the shared
+// config file and enforces chmod 600 on the file.
+func SaveGitHubToken(token string) error {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return fmt.Errorf("determine config directory: %w", err)
+	}
+
+	dir := filepath.Join(configDir, "plaud-hub")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("create config directory: %w", err)
+	}
+
+	path := filepath.Join(dir, "plaud-hub.yaml")
+
+	v := viper.New()
+	v.SetConfigType("yaml")
+	v.SetConfigFile(path)
+	_ = v.ReadInConfig() // ignore errors — file may not exist yet
+
+	v.Set("github_token", token)
+
+	if err := v.WriteConfigAs(path); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+
+	return os.Chmod(path, 0o600)
+}
