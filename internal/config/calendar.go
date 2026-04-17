@@ -128,9 +128,16 @@ func SaveReclaimKey(apiKey string) error {
 	return os.Chmod(path, 0o600)
 }
 
-// LoadReclaimKey reads the Reclaim.ai API key from the config file.
+// LoadReclaimKey reads the Reclaim.ai API key. It first checks the global Viper
+// instance (populated by config.Setup and settable in tests), then falls back to
+// reading the config file directly.
 // Returns an empty string without error when no key has been stored yet.
 func LoadReclaimKey() (string, error) {
+	// Global viper check first — works in production (after config.Setup) and tests.
+	if key := viper.GetString("calendar.reclaim.api_key"); key != "" {
+		return key, nil
+	}
+
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return "", fmt.Errorf("determine config directory: %w", err)

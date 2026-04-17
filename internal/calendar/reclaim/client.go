@@ -16,7 +16,8 @@ import (
 	"github.com/devopsjester/plaud-hub/internal/calendar"
 )
 
-const baseURL = "https://api.app.reclaim.ai/api"
+// BaseURL is the root URL for the Reclaim API. Override in tests.
+var BaseURL = "https://api.app.reclaim.ai/api"
 
 // Client holds an API key for calls to the Reclaim.ai API.
 type Client struct {
@@ -56,7 +57,7 @@ func (c *Client) ListEvents(ctx context.Context, from, to time.Time) ([]calendar
 	params.Set("end", to.AddDate(0, 0, 1).Format("2006-01-02")) // end is exclusive
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		baseURL+"/events?"+params.Encode(), nil)
+		BaseURL+"/events?"+params.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}

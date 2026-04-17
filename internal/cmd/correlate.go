@@ -32,10 +32,10 @@ var correlateCmd = &cobra.Command{
 which customer(s) each recording relates to using a customer registry YAML file,
 and moves the files into output/customers/{CustomerName}/ subfolders by default.
 
-Both the summary and transcript are searched for customer names. When
---calendar reclaim or --calendar google is specified, calendar events are fetched
-for each recording's date; attendee email domains are matched against the
-customers file to confirm or add customer matches.
+Calendar matching is the sole mechanism. Calendar events are fetched for each
+recording's date window; attendee email domains are matched against the customers
+file. Recordings with no overlapping event are placed in unmatched/. Recordings
+where all attendees are from github.com are placed in internal/.
 
 Transcript files in downloaded/ are deleted after correlation by default — they
 are staging artifacts used for matching signal only. Use --keep-transcripts to
@@ -55,7 +55,7 @@ func init() {
 	correlateCmd.Flags().String("customers-file", "", "path to customer registry YAML file (required)")
 	correlateCmd.Flags().Bool("keep", false, "keep originals in output root (default is to move)")
 	correlateCmd.Flags().String("min-confidence", customer.ConfidenceMedium, "minimum confidence level to act on: high, medium, or low")
-	correlateCmd.Flags().String("calendar", "", "calendar provider to use: reclaim or google (default from config: reclaim)")
+	correlateCmd.Flags().String("calendar", "", "calendar provider to use: reclaim or google (default from config)")
 	correlateCmd.Flags().Duration("calendar-tolerance", 15*time.Minute, "time window around recording start to search for a matching calendar event")
 	correlateCmd.Flags().String("split-llm", "", "use LLM to split multi-customer summaries: github")
 	correlateCmd.Flags().Bool("keep-transcripts", false, "keep transcript files in downloaded/ after correlation (default is to delete them)")
@@ -68,12 +68,17 @@ func init() {
 func runCorrelate(cmd *cobra.Command, _ []string) error {
 	logger := newLogger()
 
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	outputDir := viper.GetString("output_dir")
 	customersFile, _ := cmd.Flags().GetString("customers-file")
 	keepFiles, _ := cmd.Flags().GetBool("keep")
 	moveFiles := !keepFiles
 	minConf, _ := cmd.Flags().GetString("min-confidence")
-	// Resolve calendar provider: explicit flag > config file > default (reclaim).
+	// Resolve calendar provider: explicit --calendar flag > config file calendar_provider.
 	calProvider := viper.GetString("calendar_provider")
 	if flagVal, _ := cmd.Flags().GetString("calendar"); cmd.Flags().Changed("calendar") {
 		calProvider = flagVal
@@ -85,11 +90,14 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 	if customer.ConfidenceRank(minConf) == 0 {
 		return fmt.Errorf("invalid --min-confidence %q: must be high, medium, or low", minConf)
 	}
-	if calProvider != "" && calProvider != "google" && calProvider != "reclaim" {
-		return fmt.Errorf("invalid --calendar %q: must be \"google\" or \"reclaim\"", calProvider)
-	}
 	if splitLLM != "" && splitLLM != "github" {
 		return fmt.Errorf("invalid --split-llm %q: must be \"github\"", splitLLM)
+	}
+	if calProvider == "" {
+		return fmt.Errorf("calendar provider is not configured: set calendar_provider in the config file or pass --calendar reclaim|google")
+	}
+	if calProvider != "google" && calProvider != "reclaim" {
+		return fmt.Errorf("invalid --calendar %q: must be \"google\" or \"reclaim\"", calProvider)
 	}
 
 	registry, err := customer.LoadRegistry(customersFile)
@@ -166,30 +174,65 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 		var matches []customer.Match
 
 		if calClient != nil {
-			// Calendar path: time-window + attendee domain (high) merged with
-			// body text (medium). calendarMatches handles both passes.
-			calMatches, _, err := calendarMatches(cmd.Context(), calClient, registry, summaryPath, calTolerance, logger)
+			// Calendar path: time-window overlap + attendee domain matching (high confidence only).
+			calMatches, eventFound, githubOnly, err := calendarMatches(ctx, calClient, registry, summaryPath, calTolerance, logger)
 			if err != nil {
-				logger.Warn("calendar lookup failed — falling back to text matching", "file", base, "err", err)
-				// Non-fatal: fall back to text-only (use both summary and transcript).
-				matches, err = customer.CorrelateFileCombined(summaryPath, registry)
-				if err != nil {
-					logger.Warn("skipping (parse error)", "file", base, "err", err)
-					skipped++
-					continue
+				logger.Warn("calendar lookup failed — routing to unmatched", "file", base, "err", err)
+				unmatchedDir := customer.UnmatchedOutputDir(outputDir, recTime)
+				if mkErr := os.MkdirAll(unmatchedDir, 0o755); mkErr != nil {
+					return fmt.Errorf("create unmatched dir %q: %w", unmatchedDir, mkErr)
 				}
-			} else {
-				matches = calMatches
-			}
-		} else {
-			// No calendar: text-only matching — use both summary and transcript.
-			var err error
-			matches, err = customer.CorrelateFileCombined(summaryPath, registry)
-			if err != nil {
-				logger.Warn("skipping (parse error)", "file", base, "err", err)
+				if cpErr := copyOrMoveFile(summaryPath, filepath.Join(unmatchedDir, base), moveFiles); cpErr != nil {
+					logger.Warn("failed to move unmatched file", "file", base, "err", cpErr)
+				} else {
+					logger.Info("unmatched", "file", base, "dest", filepath.Join(unmatchedDir, base))
+				}
 				skipped++
 				continue
 			}
+			if !eventFound {
+				logger.Info("no calendar event found — routing to unmatched", "file", base)
+				unmatchedDir := customer.UnmatchedOutputDir(outputDir, recTime)
+				if mkErr := os.MkdirAll(unmatchedDir, 0o755); mkErr != nil {
+					return fmt.Errorf("create unmatched dir %q: %w", unmatchedDir, mkErr)
+				}
+				if cpErr := copyOrMoveFile(summaryPath, filepath.Join(unmatchedDir, base), moveFiles); cpErr != nil {
+					logger.Warn("failed to move unmatched file", "file", base, "err", cpErr)
+				} else {
+					logger.Info("unmatched", "file", base, "dest", filepath.Join(unmatchedDir, base))
+				}
+				skipped++
+				continue
+			}
+			if githubOnly {
+				logger.Info("github-internal event — routing to internal", "file", base)
+				internalDir := customer.InternalOutputDir(outputDir, recTime)
+				if mkErr := os.MkdirAll(internalDir, 0o755); mkErr != nil {
+					return fmt.Errorf("create internal dir %q: %w", internalDir, mkErr)
+				}
+				if cpErr := copyOrMoveFile(summaryPath, filepath.Join(internalDir, base), moveFiles); cpErr != nil {
+					logger.Warn("failed to move internal file", "file", base, "err", cpErr)
+				} else {
+					logger.Info("internal", "file", base, "dest", filepath.Join(internalDir, base))
+				}
+				placed++
+				continue
+			}
+			matches = calMatches
+		} else {
+			// No calendar configured — route everything to unmatched.
+			logger.Warn("no calendar configured — routing to unmatched", "file", base)
+			unmatchedDir := customer.UnmatchedOutputDir(outputDir, recTime)
+			if mkErr := os.MkdirAll(unmatchedDir, 0o755); mkErr != nil {
+				return fmt.Errorf("create unmatched dir %q: %w", unmatchedDir, mkErr)
+			}
+			if cpErr := copyOrMoveFile(summaryPath, filepath.Join(unmatchedDir, base), moveFiles); cpErr != nil {
+				logger.Warn("failed to move unmatched file", "file", base, "err", cpErr)
+			} else {
+				logger.Info("unmatched", "file", base, "dest", filepath.Join(unmatchedDir, base))
+			}
+			skipped++
+			continue
 		}
 
 		// Filter to eligible matches.
@@ -220,7 +263,7 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 		if llmClient != nil && len(eligible) > 1 {
 			handled := false
 			if recInfo.Body != "" {
-				splits, otherBody, splitErr := customer.SplitByLLM(cmd.Context(), llmClient, recInfo.Body, eligible)
+				splits, otherBody, splitErr := customer.SplitByLLM(ctx, llmClient, recInfo.Body, eligible)
 				if splitErr == nil {
 					for _, sr := range splits {
 						destDir := customer.CustomerOutputDir(outputDir, sr.CustomerName, recTime)
@@ -291,14 +334,19 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 
 			useRename := moveFiles && len(eligible) == 1
 
-			summaryDest := filepath.Join(destDir, filepath.Base(summaryPath))
+			destBase := filepath.Base(summaryPath)
+			if len(eligible) > 1 && llmClient == nil {
+				// No LLM configured — mark the file so the user knows it needs manual splitting.
+				destBase = strings.TrimSuffix(destBase, "_summary.md") + "_SPLIT_summary.md"
+			}
+			summaryDest := filepath.Join(destDir, destBase)
 			if err := copyOrMoveFile(summaryPath, summaryDest, useRename); err != nil {
 				logger.Warn("failed to place summary", "file", base, "customer", m.Customer.Name, "err", err)
 				continue
 			}
 
 			logger.Info("placed",
-				"file", base,
+				"file", destBase,
 				"customer", m.Customer.Name,
 				"confidence", m.Confidence,
 			)
@@ -449,18 +497,17 @@ func writeTempThenRename(dst string, data []byte) error {
 }
 
 // calendarMatches returns customer matches for a recording by correlating its
-// timestamp window against calendar events, then boosting with body text.
+// timestamp window against calendar events.
 //
-// Confidence tiers:
-//   - high:   recording window overlaps a non-all-day calendar event AND the
+// Confidence tier:
+//   - high: recording window overlaps a non-all-day calendar event AND the
 //     attendee's email domain maps to a known customer.
-//   - medium: no calendar attendee match but the summary body text mentions
-//     the customer name. Also used when a high match has a body
-//     mention — the calendar result wins (already high), no change.
+//
+// Returns githubOnly=true when an event was found but all attendees' email
+// domains were github.com (internal-only meeting).
 //
 // The recording window is [date, date+duration]. A 2-minute grace period is
-// applied at both ends to account for the Plaud button being pressed slightly
-// before or after the calendar invite time.
+// applied at both ends.
 //
 // eventFound is true when at least one overlapping non-all-day event was found,
 // even if no domain matched a known customer.
@@ -474,10 +521,10 @@ func calendarMatches(
 		Warn(string, ...any)
 		Debug(string, ...any)
 	},
-) (matches []customer.Match, eventFound bool, err error) {
+) (matches []customer.Match, eventFound bool, githubOnly bool, err error) {
 	info, parseErr := customer.ParseRecordingInfo(summaryPath)
 	if parseErr != nil || info.Start.IsZero() {
-		return nil, false, nil
+		return nil, false, false, nil
 	}
 
 	from := info.Start.Truncate(24 * time.Hour)
@@ -485,7 +532,7 @@ func calendarMatches(
 
 	events, err := client.ListEvents(ctx, from, to)
 	if err != nil {
-		return nil, false, err
+		return nil, false, false, err
 	}
 
 	const grace = 2 * time.Minute
@@ -494,6 +541,7 @@ func calendarMatches(
 
 	// --- Pass 1: calendar attendee domain matching (high confidence) ---
 	seenHigh := make(map[string]bool)
+	allEventAttendeesGitHub := true // assume true until a non-github.com domain is seen
 	for _, ev := range events {
 		logger.Debug("considering event",
 			"file", filepath.Base(summaryPath),
@@ -528,6 +576,9 @@ func calendarMatches(
 			if domain == "" {
 				continue
 			}
+			if domain != "github.com" {
+				allEventAttendeesGitHub = false
+			}
 			c := registry.MatchDomain(domain)
 			if c == nil || seenHigh[c.Name] {
 				continue
@@ -543,30 +594,11 @@ func calendarMatches(
 		}
 	}
 
-	// --- Pass 2: summary + transcript body text matching (medium confidence) ---
-	// Any customer found in the body text that was NOT already matched at high
-	// confidence from the calendar is added at medium confidence.
-	// Include the transcript body (if present) for richer signal.
-	transcriptBody := ""
-	transcriptPath := strings.TrimSuffix(summaryPath, "_summary.md") + "_transcript.md"
-	if tInfo, tErr := customer.ParseRecordingInfo(transcriptPath); tErr == nil {
-		transcriptBody = tInfo.Body
+	// githubOnly: event found, no external customer matched, all attendees from github.com.
+	if eventFound && len(matches) == 0 {
+		githubOnly = allEventAttendeesGitHub
 	}
-	textMatches := registry.MatchText(info.Title, info.Body+"\n"+transcriptBody)
-	for _, tm := range textMatches {
-		if seenHigh[tm.Customer.Name] {
-			// Already captured at high; body text doesn't lower it.
-			continue
-		}
-		logger.Debug("body text match",
-			"file", filepath.Base(summaryPath),
-			"customer", tm.Customer.Name,
-			"confidence", tm.Confidence,
-		)
-		matches = append(matches, customer.Match{Customer: tm.Customer, Confidence: customer.ConfidenceMedium})
-	}
-
-	return matches, eventFound, nil
+	return matches, eventFound, githubOnly, nil
 }
 
 // recordingTitleFromPath extracts a normalized title string from the filename.

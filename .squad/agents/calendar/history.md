@@ -1,5 +1,22 @@
 ## Learnings
 
+### 2026-04-17 — Calendar-only correlation rewrite
+
+**What changed**
+
+- `--calendar` flag default changed from `""` to `"reclaim"` so calendar is always active unless explicitly overridden.
+- `calendarMatches` signature extended with a fourth return value `githubOnly bool`. Early returns and the final return updated accordingly.
+- Pass 2 (body-text / `MatchText` medium-confidence matching) removed entirely from `calendarMatches`. The only matching path is now: calendar event overlap → attendee email domain → customer registry.
+- Added `allEventAttendeesGitHub` tracking inside the attendee loop: any non-`github.com` attendee domain sets the flag false. When `eventFound && len(matches) == 0`, `githubOnly` is set from this flag.
+- `runCorrelate` routing block rewritten: calendar error → unmatched + continue; no event found → unmatched + continue; githubOnly → internal + continue; customer match → eligible filter path. No-calendar case also routes to unmatched + continue (no text fallback).
+- `Long` command description updated to reflect calendar-only strategy.
+
+**Key decisions**
+
+- Removed text-fallback path on calendar error. The rationale: a calendar lookup error is a signal the user should investigate (expired token, network issue), not silently swallow by degrading to lower-quality text matching.
+- `githubOnly` detection is based on *all* non-empty-domain attendees being `github.com`. If even one external domain is present but doesn't match a known customer, the recording routes to `unmatched` (not internal) — this is intentional and correct.
+- Two tests in `correlate_transcript_test.go` (lines 136, 174) now fail to compile because they test removed Pass 2 behaviour and use the old 3-return call signature. Left for the Tester to update.
+
 ### 2026-04-15 — Initial calendar package design and implementation
 
 **Package structure chosen**
