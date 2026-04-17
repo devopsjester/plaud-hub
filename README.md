@@ -73,6 +73,8 @@ plaud-hub download -v
 
 The `correlate` command organizes downloaded Markdown files into per-customer subfolders under `output/customers/`. Move is the default; use `--keep` to preserve originals in the output root.
 
+> **Transcript lifecycle:** `download` fetches both summaries and transcripts by default. `correlate` searches both for customer names (richer matching), then **deletes transcripts from `downloaded/`** after processing — they are staging artifacts. Pass `--keep-transcripts` to retain them.
+
 ```bash
 # Move files to customer folders (default)
 plaud-hub correlate --customers-file customers.yaml
@@ -98,6 +100,7 @@ plaud-hub correlate --customers-file customers.yaml --calendar google --split-ll
 | `--calendar`           |            | Confirm matches via calendar attendees: `google` or `reclaim`              |
 | `--calendar-tolerance` | `15m`      | Time window around recording start to search for a matching calendar event |
 | `--split-llm`          |            | Split multi-customer summaries using an LLM: `github`                      |
+| `--keep-transcripts`   | false      | Keep transcript files in `downloaded/` after correlation (default: deleted) |
 
 ## Configuration
 

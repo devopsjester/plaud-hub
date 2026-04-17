@@ -37,6 +37,10 @@ Both the summary and transcript are searched for customer names. When
 for each recording's date; attendee email domains are matched against the
 customers file to confirm or add customer matches.
 
+Transcript files in downloaded/ are deleted after correlation by default — they
+are staging artifacts used for matching signal only. Use --keep-transcripts to
+retain them (e.g. for audit purposes).
+
 When a recording matches multiple customers, files are copied to each folder and
 the original is removed. Use --keep to preserve originals in the output root.
 
@@ -310,11 +314,16 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 	// Clean up transcript files from downloaded/ unless the caller opted to keep them.
 	if !keepTranscripts {
 		transcripts, _ := filepath.Glob(filepath.Join(downloadedDir, "*_transcript.md"))
+		removed := 0
 		for _, tp := range transcripts {
-			_ = os.Remove(tp)
+			if err := os.Remove(tp); err != nil {
+				logger.Warn("failed to remove transcript file", "file", filepath.Base(tp), "err", err)
+			} else {
+				removed++
+			}
 		}
-		if len(transcripts) > 0 {
-			logger.Info("removed transcript files from downloaded/", "count", len(transcripts))
+		if removed > 0 {
+			logger.Info("removed transcript files from downloaded/", "count", removed)
 		}
 	}
 

@@ -1,5 +1,15 @@
 ## Learnings
 
+### 2026-04-16 — Transcript deletion & calendar body tests (correlate_transcript_test.go)
+
+- For `calendarMatches` unit tests a minimal `fakeCalendarClient` struct implementing the `calendarClient` interface is enough — no need for mocks frameworks; the anonymous logger interface is satisfied by a zero-value `nopLogger` struct.
+- `calendarMatches` Pass 2 (body text matching) runs unconditionally regardless of whether any calendar event was found; testing with an empty event list is sufficient to exercise the transcript-body read path.
+- For integration-style `runCorrelate` tests: `runCorrelate` reads `output_dir` from global viper, not from a command flag directly. Use `viper.Set("output_dir", tmpDir)` + `t.Cleanup` to restore state. Also set `calendar_provider` to `""` to prevent calendar API key lookups. These tests must NOT call `t.Parallel()`.
+- Spread new tests across a separate `_test.go` file (idiomatic Go) rather than appending to the existing file, to avoid needing to rewrite the import block.
+- `containsWord` uses word-boundary checks, so `"Beta corporation"` correctly matches customer `"Beta"`.
+
+
+
 ### 2026-04-16 — LLM split tests (splitter, github, correlate)
 
 - `SplitByLLM` had no early return for empty matches; added `if len(matches) == 0 { return nil, nil }` to prevent a vacuous LLM call and make the test contract clear.
