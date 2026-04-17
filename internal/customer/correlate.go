@@ -160,9 +160,9 @@ func DownloadedDir(root string) string {
 type parsedFrontMatter struct {
 	recordingID string
 	title       string
-	body         string
-	date         time.Time
-	duration     time.Duration
+	body        string
+	date        time.Time
+	duration    time.Duration
 }
 
 // parseFrontMatter reads a Markdown file and extracts YAML front matter fields
