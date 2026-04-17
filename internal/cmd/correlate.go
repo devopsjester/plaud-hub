@@ -51,12 +51,13 @@ func init() {
 	correlateCmd.Flags().String("customers-file", "", "path to customer registry YAML file (required)")
 	correlateCmd.Flags().Bool("keep", false, "keep originals in output root (default is to move)")
 	correlateCmd.Flags().String("min-confidence", customer.ConfidenceMedium, "minimum confidence level to act on: high, medium, or low")
-	correlateCmd.Flags().String("calendar", "", "confirm matches via calendar attendees: reclaim or google")
+	correlateCmd.Flags().String("calendar", "", "calendar provider to use: reclaim or google (default from config: reclaim)")
 	correlateCmd.Flags().Duration("calendar-tolerance", 15*time.Minute, "time window around recording start to search for a matching calendar event")
 	correlateCmd.Flags().String("split-llm", "", "use LLM to split multi-customer summaries: github")
 
 	_ = correlateCmd.MarkFlagRequired("customers-file")
 	_ = viper.BindPFlag("output_dir", correlateCmd.Flags().Lookup("output-dir"))
+	_ = viper.BindPFlag("calendar_provider", correlateCmd.Flags().Lookup("calendar"))
 }
 
 func runCorrelate(cmd *cobra.Command, _ []string) error {
@@ -67,7 +68,11 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 	keepFiles, _ := cmd.Flags().GetBool("keep")
 	moveFiles := !keepFiles
 	minConf, _ := cmd.Flags().GetString("min-confidence")
-	calProvider, _ := cmd.Flags().GetString("calendar")
+	// Resolve calendar provider: explicit flag > config file > default (reclaim).
+	calProvider := viper.GetString("calendar_provider")
+	if flagVal, _ := cmd.Flags().GetString("calendar"); cmd.Flags().Changed("calendar") {
+		calProvider = flagVal
+	}
 	calTolerance, _ := cmd.Flags().GetDuration("calendar-tolerance")
 	splitLLM, _ := cmd.Flags().GetString("split-llm")
 
