@@ -14,7 +14,7 @@
 **Key decisions**
 
 - Removed text-fallback path on calendar error. The rationale: a calendar lookup error is a signal the user should investigate (expired token, network issue), not silently swallow by degrading to lower-quality text matching.
-- `githubOnly` detection is based on *all* non-empty-domain attendees being `github.com`. If even one external domain is present but doesn't match a known customer, the recording routes to `unmatched` (not internal) — this is intentional and correct.
+- `githubOnly` detection is based on _all_ non-empty-domain attendees being `github.com`. If even one external domain is present but doesn't match a known customer, the recording routes to `unmatched` (not internal) — this is intentional and correct.
 - Two tests in `correlate_transcript_test.go` (lines 136, 174) now fail to compile because they test removed Pass 2 behaviour and use the old 3-return call signature. Left for the Tester to update.
 
 ### 2026-04-15 — Initial calendar package design and implementation

@@ -439,4 +439,3 @@ func newSplitMarkerStubServer(t *testing.T) *httptest.Server {
 		}]`))
 	}))
 }
-

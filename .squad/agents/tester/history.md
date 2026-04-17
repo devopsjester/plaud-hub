@@ -3,13 +3,11 @@
 ### 2026-04-17 — Calendar-only routing tests (correlate_transcript_test.go)
 
 - Calendar agent updated `calendarMatches` signature to `(matches, eventFound, githubOnly bool, err)` and removed Pass 2 (body text matching). All test call sites updated from 3-value to 4-value unpacking.
-- `TestCalendarMatchesTranscriptBodyUsed` was deleted (Pass 2 no longer exists); replaced with `TestCalendarMatchesAttendeeHighConfidence` that proves attendee domain → high-confidence customer match while deliberately putting a *different* customer name in the body (proves body is not consulted).
+- `TestCalendarMatchesTranscriptBodyUsed` was deleted (Pass 2 no longer exists); replaced with `TestCalendarMatchesAttendeeHighConfidence` that proves attendee domain → high-confidence customer match while deliberately putting a _different_ customer name in the body (proves body is not consulted).
 - `TestCalendarMatchesMissingTranscript` was deleted (body text path gone); replaced with `TestCalendarMatchesGitHubOnlyEvent` asserting `githubOnly=true/eventFound=true/matches=empty` when all attendees are @github.com.
 - Added `TestCalendarMatchesNoEvent` for the `eventFound=false/githubOnly=false/matches=empty` path when the fake calendar returns no events.
 - `newFullCorrelateCmd` flag default changed from `""` to `"reclaim"` to match the updated `correlateCmd` registration. Integration tests remain correct because `viperSetup` sets `calendar_provider=""` via viper, overriding the flag default, so `calClient == nil` → file routes to unmatched (transcript-deletion assertions still hold).
 - When a Calendar agent modifies a calendarMatches signature in parallel: read the production file first before writing any test; the Calendar agent had already committed all changes by the time tests were authored.
-
-
 
 ### 2026-04-16 — Transcript deletion & calendar body tests (correlate_transcript_test.go)
 
