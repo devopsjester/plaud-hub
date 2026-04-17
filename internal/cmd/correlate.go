@@ -54,6 +54,7 @@ func init() {
 	correlateCmd.Flags().String("calendar", "", "calendar provider to use: reclaim or google (default from config: reclaim)")
 	correlateCmd.Flags().Duration("calendar-tolerance", 15*time.Minute, "time window around recording start to search for a matching calendar event")
 	correlateCmd.Flags().String("split-llm", "", "use LLM to split multi-customer summaries: github")
+	correlateCmd.Flags().Bool("keep-transcripts", false, "keep transcript files in downloaded/ after correlation (default is to delete them)")
 
 	_ = correlateCmd.MarkFlagRequired("customers-file")
 	_ = viper.BindPFlag("output_dir", correlateCmd.Flags().Lookup("output-dir"))
@@ -75,6 +76,7 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 	}
 	calTolerance, _ := cmd.Flags().GetDuration("calendar-tolerance")
 	splitLLM, _ := cmd.Flags().GetString("split-llm")
+	keepTranscripts, _ := cmd.Flags().GetBool("keep-transcripts")
 
 	if customer.ConfidenceRank(minConf) == 0 {
 		return fmt.Errorf("invalid --min-confidence %q: must be high, medium, or low", minConf)
@@ -165,8 +167,8 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 			calMatches, _, err := calendarMatches(cmd.Context(), calClient, registry, summaryPath, calTolerance, logger)
 			if err != nil {
 				logger.Warn("calendar lookup failed — falling back to text matching", "file", base, "err", err)
-				// Non-fatal: fall back to text-only.
-				matches, err = customer.CorrelateFile(summaryPath, registry)
+				// Non-fatal: fall back to text-only (use both summary and transcript).
+				matches, err = customer.CorrelateFileCombined(summaryPath, registry)
 				if err != nil {
 					logger.Warn("skipping (parse error)", "file", base, "err", err)
 					skipped++
@@ -176,9 +178,9 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 				matches = calMatches
 			}
 		} else {
-			// No calendar: text-only matching.
+			// No calendar: text-only matching — use both summary and transcript.
 			var err error
-			matches, err = customer.CorrelateFile(summaryPath, registry)
+			matches, err = customer.CorrelateFileCombined(summaryPath, registry)
 			if err != nil {
 				logger.Warn("skipping (parse error)", "file", base, "err", err)
 				skipped++
@@ -302,6 +304,17 @@ func runCorrelate(cmd *cobra.Command, _ []string) error {
 		// Multi-customer + move: remove original after all copies.
 		if moveFiles && len(eligible) > 1 {
 			_ = os.Remove(summaryPath)
+		}
+	}
+
+	// Clean up transcript files from downloaded/ unless the caller opted to keep them.
+	if !keepTranscripts {
+		transcripts, _ := filepath.Glob(filepath.Join(downloadedDir, "*_transcript.md"))
+		for _, tp := range transcripts {
+			_ = os.Remove(tp)
+		}
+		if len(transcripts) > 0 {
+			logger.Info("removed transcript files from downloaded/", "count", len(transcripts))
 		}
 	}
 
@@ -521,10 +534,16 @@ func calendarMatches(
 		}
 	}
 
-	// --- Pass 2: summary body text matching (medium confidence) ---
+	// --- Pass 2: summary + transcript body text matching (medium confidence) ---
 	// Any customer found in the body text that was NOT already matched at high
 	// confidence from the calendar is added at medium confidence.
-	textMatches := registry.MatchText(info.Title, info.Body)
+	// Include the transcript body (if present) for richer signal.
+	transcriptBody := ""
+	transcriptPath := strings.TrimSuffix(summaryPath, "_summary.md") + "_transcript.md"
+	if tInfo, tErr := customer.ParseRecordingInfo(transcriptPath); tErr == nil {
+		transcriptBody = tInfo.Body
+	}
+	textMatches := registry.MatchText(info.Title, info.Body+"\n"+transcriptBody)
 	for _, tm := range textMatches {
 		if seenHigh[tm.Customer.Name] {
 			// Already captured at high; body text doesn't lower it.
