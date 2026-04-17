@@ -1,5 +1,6 @@
 customers:
   - name: McDonalds
+    gainsight_name: ""   # TODO: set to exact Gainsight account name
     aliases:
       - "McDonald's"
       - "mcd"
@@ -9,6 +10,7 @@ customers:
       - "mcdonalds.com"
 
   - name: Nextera
+    gainsight_name: ""
     aliases:
       - "NextEra"
       - "NextEra Energy"
@@ -19,6 +21,7 @@ customers:
       - "fpl.com"
 
   - name: SLB
+    gainsight_name: ""
     aliases:
       - "Schlumberger"
     domains:
@@ -26,6 +29,7 @@ customers:
       - "schlumberger.com"
 
   - name: Grainger
+    gainsight_name: ""
     aliases:
       - "Granger"
       - "W.W. Grainger"
@@ -34,6 +38,7 @@ customers:
       - "wwgrainger.com"
 
   - name: Halliburton
+    gainsight_name: ""
     aliases:
       - "Halliburton Company"
       - "Halliburton Energy Services"
@@ -43,6 +48,7 @@ customers:
       - "halliburton.com"
 
   - name: Albertsons
+    gainsight_name: ""
     aliases:
       - "Albertson's"
       - "Albertson"
@@ -52,10 +58,12 @@ customers:
       - "costco.com"
 
   - name: CSX
+    gainsight_name: ""
     domains:
       - "csx.com"
 
   - name: CocaCola
+    gainsight_name: ""
     aliases:
       - "Coca-Cola"
       - "Coca Cola"
@@ -69,6 +77,7 @@ customers:
       - "tccc.com"
 
   - name: ThoughtWorks
+    gainsight_name: ""
     aliases:
       - "ThoughtWorks Inc."
       - "ThoughtWorks Ltd."
@@ -78,6 +87,7 @@ customers:
       - "thoughtworks.com"
 
   - name: Chick-fil-A
+    gainsight_name: ""
     aliases:
       - "Chick-fil-A Inc."
       - "Chick-fil-A, Inc."
@@ -87,6 +97,7 @@ customers:
       - "cfa.com"
   
   - name: CoxAuto
+    gainsight_name: ""
     aliases:
       - "Cox Automotive"
       - "Cox Auto"

@@ -17,6 +17,9 @@ type Customer struct {
 	Aliases []string `yaml:"aliases,omitempty"`
 	// Domains are email domains associated with this customer (e.g. "us.mcd.com").
 	Domains []string `yaml:"domains,omitempty"`
+	// GainsightName is the exact account name used in Gainsight (may differ from Name).
+	// Used later when uploading notes to Gainsight via MCP.
+	GainsightName string `yaml:"gainsight_name,omitempty"`
 }
 
 // allTerms returns a lowercase, quote-normalized slice of the canonical name

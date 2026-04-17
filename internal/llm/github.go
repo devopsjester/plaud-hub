@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -119,8 +120,21 @@ Summary:
 		return nil, fmt.Errorf("no choices in response")
 	}
 
+	raw := strings.TrimSpace(chatResp.Choices[0].Message.Content)
+
+	// Models often wrap JSON in markdown code fences despite being told not to.
+	// Strip ```json ... ``` or ``` ... ``` wrappers before unmarshaling.
+	if strings.HasPrefix(raw, "```") {
+		if idx := strings.IndexByte(raw, '\n'); idx != -1 {
+			raw = raw[idx+1:]
+		}
+		if idx := strings.LastIndex(raw, "```"); idx != -1 {
+			raw = strings.TrimSpace(raw[:idx])
+		}
+	}
+
 	var result map[string]string
-	if err := json.Unmarshal([]byte(chatResp.Choices[0].Message.Content), &result); err != nil {
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		return nil, fmt.Errorf("parse LLM content as JSON: %w", err)
 	}
 

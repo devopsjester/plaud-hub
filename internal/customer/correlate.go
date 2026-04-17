@@ -131,9 +131,27 @@ func mergeMatches(a, b []Match) []Match {
 }
 
 // CustomerOutputDir returns the directory where files for a customer should be
-// written: {outputDir}/customers/{customerName}.
-func CustomerOutputDir(outputDir, customerName string) string {
-	return filepath.Join(outputDir, "customers", customerName)
+// written: {root}/processed/customers/{customerName}/YYYY-MM.
+func CustomerOutputDir(root, customerName string, t time.Time) string {
+	return filepath.Join(root, "processed", "customers", customerName, t.Format("2006-01"))
+}
+
+// InternalOutputDir returns the directory for LLM split "other" / internal
+// content: {root}/processed/internal/YYYY-MM.
+func InternalOutputDir(root string, t time.Time) string {
+	return filepath.Join(root, "processed", "internal", t.Format("2006-01"))
+}
+
+// UnmatchedOutputDir returns the directory for recordings with no customer
+// match: {root}/processed/unmatched/YYYY-MM.
+func UnmatchedOutputDir(root string, t time.Time) string {
+	return filepath.Join(root, "processed", "unmatched", t.Format("2006-01"))
+}
+
+// DownloadedDir returns the directory where raw downloaded files are stored:
+// {root}/downloaded.
+func DownloadedDir(root string) string {
+	return filepath.Join(root, "downloaded")
 }
 
 // parsedFrontMatter holds the fields extracted from a YAML front matter block.

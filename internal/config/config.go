@@ -17,6 +17,19 @@ const (
 	DefaultOutputDir   = "./output"
 	DefaultConcurrency = 5
 	DefaultType        = "all"
+
+	// Subdirectory layout under DefaultOutputDir:
+	//   output/
+	//   ├── downloaded/              ← raw files from `download` command
+	//   └── processed/
+	//       ├── customers/{Name}/YYYY-MM/  ← matched customer content
+	//       ├── internal/YYYY-MM/          ← LLM split "other" / internal notes
+	//       └── unmatched/YYYY-MM/         ← recordings with no customer match
+	SubdirDownloaded = "downloaded"
+	SubdirProcessed  = "processed"
+	SubdirCustomers  = "customers"
+	SubdirInternal   = "internal"
+	SubdirUnmatched  = "unmatched"
 )
 
 // Setup initializes Viper with config file paths and environment bindings.

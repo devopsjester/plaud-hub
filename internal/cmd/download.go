@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"time"
 
 	"github.com/devopsjester/plaud-hub/internal/api"
@@ -101,7 +102,7 @@ func runDownload(cmd *cobra.Command, _ []string) error {
 	}
 
 	opts := download.Options{
-		OutputDir:   outputDir,
+		OutputDir:   filepath.Join(outputDir, config.SubdirDownloaded),
 		Type:        dlType,
 		Force:       force,
 		Concurrency: concurrency,

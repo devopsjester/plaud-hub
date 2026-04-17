@@ -13,12 +13,12 @@ type LLMSplitter interface {
 	SplitSummary(ctx context.Context, body string, customers []string) (map[string]string, error)
 }
 
-// SplitByLLM calls the splitter and returns one SplitResult per customer.
+// SplitByLLM calls the splitter and returns one SplitResult per customer
+// and any remaining content not tied to a specific customer (the "other" key).
 // If a customer has no content in the response, it is omitted.
-// "other" key content is ignored (not placed anywhere).
-func SplitByLLM(ctx context.Context, splitter LLMSplitter, body string, matches []Match) ([]SplitResult, error) {
+func SplitByLLM(ctx context.Context, splitter LLMSplitter, body string, matches []Match) (results []SplitResult, other string, err error) {
 	if len(matches) == 0 {
-		return nil, nil
+		return nil, "", nil
 	}
 	names := make([]string, len(matches))
 	for i, m := range matches {
@@ -27,10 +27,9 @@ func SplitByLLM(ctx context.Context, splitter LLMSplitter, body string, matches 
 
 	parts, err := splitter.SplitSummary(ctx, body, names)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	var results []SplitResult
 	for _, m := range matches {
 		content, ok := parts[m.Customer.Name]
 		if !ok || content == "" {
@@ -41,5 +40,5 @@ func SplitByLLM(ctx context.Context, splitter LLMSplitter, body string, matches 
 			Body:         content,
 		})
 	}
-	return results, nil
+	return results, parts["other"], nil
 }
